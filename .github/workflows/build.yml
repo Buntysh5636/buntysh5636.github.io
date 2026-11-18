@@ -1,0 +1,47 @@
+name: Build and Deploy
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Apply
+        env:
+          AB01C3: ${{ secrets.AB01C3 }}
+          BD8105: ${{ secrets.BD8105 }}
+        run: |
+          python3 -c "
+          import os, sys, pathlib
+          tag_a = os.environ.get('AB01C3', '')
+          tag_b = os.environ.get('BD8105', '')
+          fpath = pathlib.Path('index.html')
+          orig = fpath.read_text(encoding='utf-8')
+          updated = orig
+          if tag_a:
+              updated = updated.replace('<!-- fa62643e85471c7ddbadd3 -->', tag_a)
+          if tag_b:
+              updated = updated.replace('<!-- 5571b653e623b9104ce183a482 -->', tag_b)
+          if updated == orig and (tag_a or tag_b):
+              sys.exit(1)
+          if updated != orig:
+              fpath.write_text(updated, encoding='utf-8')
+          "
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
